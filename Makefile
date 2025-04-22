@@ -1,15 +1,13 @@
-# From malloc
-
 CC = gcc
 CFLAGS = -Wall -g -fpic -Wno-deprecated-declarations
 
-intel-all: lib/libmalloc.so lib64/libmalloc.so
+intel-all: lib/liblwp.so lib64/liblwp.so
 
-lib/libmalloc.so: lib malloc32.o
-	$(CC) $(CFLAGS) -m32 -shared -o $@ malloc32.o
+lib/liblwp.so: lib liblwp32.o
+	$(CC) $(CFLAGS) -m32 -shared -o $@ liblwp32.o
 
-lib64/libmalloc.so: lib64 malloc64.o
-	$(CC) $(CFLAGS) -shared -o $@ malloc64.o
+lib64/liblwp.so: lib64 liblwp64.o
+	$(CC) $(CFLAGS) -shared -o $@ liblwp64.o
 
 lib:
 	mkdir lib
@@ -17,8 +15,8 @@ lib:
 lib64:
 	mkdir lib64
 
-malloc32.o: malloc.c
-	$(CC) $(CFLAGS) -m32 -c -o malloc32.o malloc.c
+liblwp32.o: lwp.c lwp.h
+	$(CC) $(CFLAGS) -m32 -c -o liblwp32.o lwp.c lwp.h
 
-malloc64.o: malloc.c
-	$(CC) $(CFLAGS) -m64 -c -o malloc64.o malloc.c
+liblwp64.o: lwp.c lwp.h
+	$(CC) $(CFLAGS) -m64 -c -o liblwp64.o lwp.c lwp.h
