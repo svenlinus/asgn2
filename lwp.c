@@ -26,6 +26,15 @@ uintptr_t roundUp(uintptr_t x, int multiple) {
   return ((x + multiple - 1) / multiple) * multiple;
 }
 
+/* Call the given lwpfunction with the given argument.
+ * Calls lwp exit() with its return value
+ */
+void lwp_wrap(lwpfun fun, void *arg) {
+  int rval;
+  rval = fun(arg);
+  lwp_exit(rval);
+}
+
 /* Allocates resources for a LWP, returns thread ID */
 tid_t lwp_create(lwpfun function, void *argument) {
   /* Figure out the size of the LWP's stack */
@@ -65,7 +74,7 @@ tid_t lwp_create(lwpfun function, void *argument) {
   /* This pointer will be the base of the stack */
   uintptr_t base_ptr = stack_top + stack_size;
   /* Add return address to stack so that the program jumps to the function */
-  ((unsigned char *)base_ptr)[1] = function;
+  ((unsigned char *)base_ptr)[1] = (uintptr_t)lwp_wrap;
   ((unsigned char *)base_ptr)[2] = base_ptr;
 
   /* Allocate a context for the lwp */
@@ -82,7 +91,8 @@ tid_t lwp_create(lwpfun function, void *argument) {
   /* Set base pointer to this threads stack */
   lwp->state.rbp = base_ptr + 2;
   /* In x86, the first function argument is stored in rdi */
-  lwp->state.rdi = (uintptr_t)argument;
+  lwp->state.rdi = (uintptr_t)function;
+  lwp->state.rsi = (uintptr_t)argument;
 
   /* Add lwp to scheduler */
   scheduler sched = lwp_get_scheduler();
