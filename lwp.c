@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include "lwp.h"
+#include "scheduler.h"
 
 #define MEGABYTE 1048576
 #define KILOBYTE 1024
@@ -78,6 +79,37 @@ tid_t lwp_create(lwpfun function, void *argument) {
   return lwp->tid;
 }
 
+void lwp_set_scheduler(scheduler fun){
+  thread current_thread = current_scheduler->next();
+  if (fun == NULL) {
+    current_scheduler->init = round_robin_scheduler->init;
+    current_scheduler->admit = round_robin_scheduler->admit;
+    current_scheduler->next = round_robin_scheduler->next;
+    current_scheduler->qlen = round_robin_scheduler->qlen;
+    current_scheduler->remove = round_robin_scheduler->remove;
+    current_scheduler->shutdown = round_robin_scheduler->shutdown;
+    return;
+  }
+
+  if(fun->init != NULL){
+    fun->init();
+  }
+  while(current_thread != NULL){
+    fun->admit(current_thread);
+    current_scheduler->remove(current_thread);  
+    current_thread = current_scheduler->next();
+  }
+  current_scheduler->init = fun->init;
+  current_scheduler->admit = fun->admit;
+  current_scheduler->remove = fun->remove;
+  current_scheduler->next = fun->next;
+  current_scheduler->qlen = fun->qlen;
+
+  if (current_scheduler->shutdown != NULL){
+    current_scheduler->shutdown();
+  }
+  current_scheduler->shutdown = fun->shutdown;
+}
 
 void lwp_start() {
   /* Allocate a context for the main thread */
