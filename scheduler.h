@@ -3,7 +3,6 @@
 scheduler round_robin_scheduler;
 scheduler current_scheduler;
 thread thread_list_head = NULL;
-thread thread_list_tail = NULL;
 
 void init(void);
 
