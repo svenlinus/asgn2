@@ -131,6 +131,10 @@ void lwp_set_scheduler(scheduler fun){
   current_scheduler->shutdown = fun->shutdown;
 }
 
+scheduler lwp_get_scheduler(){
+  return current_scheduler;
+}
+
 void lwp_start() {
   /* Allocate a context for the main thread */
   thread lwp = (thread)calloc(1, sizeof(context));
