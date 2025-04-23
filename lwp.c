@@ -1,4 +1,4 @@
-/* TODO: Wrap */
+/* TODO: lwp gettid(void), tid2thread(tid t tid), Wrap */
 
 #include <stdio.h>
 #include <unistd.h>
@@ -183,24 +183,37 @@ void lwp_exit(int status) {
     sched->admit(waiting_threads);
     /* Deque waiting thread */
     waiting_threads = waiting_threads->lib_one;
-    /* Remove curr thread from schedule */
-    sched->remove(curr_thread);
-    return;
-  }
-
-  /* Add curr_thread to end of exited threads list */
-  if (exited_threads == NULL) {
-    exited_threads = curr_thread;
   }
   else {
-    thread iter_thread = exited_threads;
-    while (iter_thread->exited) {
-      iter_thread = iter_thread->exited;
+    /* Add curr_thread to end of exited threads list */
+    if (exited_threads == NULL) {
+      exited_threads = curr_thread;
     }
-    iter_thread->exited = curr_thread;
+    else {
+      thread iter_thread = exited_threads;
+      while (iter_thread->exited) {
+        iter_thread = iter_thread->exited;
+      }
+      iter_thread->exited = curr_thread;
+    }
   }
   /* Remove curr thread from schedule */
   sched->remove(curr_thread);
+  /* Remove curr thread from all threads */
+  thread iter_thread = all_threads;
+  thread pthread = NULL;
+  while (iter_thread) {
+    if (iter_thread->tid == curr_thread->tid) {
+      if (pthread) {
+        pthread->lib_two = iter_thread->lib_two;
+      }
+      else {
+        all_threads = iter_thread->lib_two;
+      }
+    }
+    pthread = iter_thread;
+    iter_thread = iter_thread->lib_two;
+  }
 }
 
 tid_t lwp_wait(int *status) {
@@ -247,7 +260,7 @@ tid_t lwp_wait(int *status) {
   *status = exit_thread->status ? LWPTERMSTAT(exit_thread->status) : NULL;
   /* Deallocate exited thread */
   if (exit_thread->stack) {
-    free(exit_thread->stack);
+    munmap(exit_thread->stack, exit_thread->stacksize);
   }
   free(exit_thread);
 

@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include <stdlib.h>
 
 void init(void){
     return;
