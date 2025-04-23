@@ -37,7 +37,7 @@ tid_t lwp_create(lwpfun function, void *argument) {
   }
   /* Round to nearest multiple of page size */
   if (stack_size % page_size != 0) {
-    roundUp(stack_size, page_size);
+    stack_size = roundUp(stack_size, page_size);
   }
 
   /* Create stack for the LWP */
@@ -51,19 +51,55 @@ tid_t lwp_create(lwpfun function, void *argument) {
   );
   if (stack_top == MAP_FAILED) {
     perror("mmap");
-    exit(EXIT_FAILURE);
+    return NO_THREAD;
   }
   /* Because stacks grow downward, compute the top of the allocated memory */
   /* This pointer will be the base of the stack */
   uintptr_t base_ptr = stack_top + stack_size;
   /* Allocate a context for the lwp */
-  context *lwp = (context *)malloc(sizeof(context));
+  thread lwp = (thread)calloc(1, sizeof(context));
+  if (lwp == NULL) {
+    perror("malloc");
+    return NO_THREAD;
+  }
   lwp->stack = base_ptr;
   lwp->stacksize = stack_size;
   lwp->tid = tid_incr++;
-  // lwp->state.rbp = 
+  lwp->state.fxsave = FPU_INIT;
+  /* Set base pointer to function to return to this thread */
+  lwp->state.rbp = (uintptr_t)function - 1;
+  /* In x86, the first function argument is stored in rdi */
+  lwp->state.rdi = (uintptr_t)argument;
+
+  /* Add lwp to scheduler */
+  scheduler sched = lwp_get_scheduler();
+  sched->admit(lwp);
+
+  return lwp->tid;
 }
 
+
+void lwp_start() {
+  /* Allocate a context for the main thread */
+  thread lwp = (thread)calloc(1, sizeof(context));
+  if (lwp == NULL) {
+    perror("malloc");
+    exit(EXIT_FAILURE);
+  }
+  lwp->stack = NULL;
+  lwp->tid = tid_incr++;
+  lwp->state.fxsave = FPU_INIT;
+
+  /* Add lwp to scheduler */
+  scheduler sched = lwp_get_scheduler();
+  sched->admit(lwp);
+
+  lwp_yield();
+}
+
+void lwp_yield() {
+  
+}
 
 int main() {
   return 0;
