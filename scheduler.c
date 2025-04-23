@@ -15,8 +15,8 @@ void admit(thread new){
     }
     else{
         new->sched_one = thread_list_head;
-        (thread_list_head->sched_two)->sched_one = new;
         new->sched_two = thread_list_head->sched_two;
+        (thread_list_head->sched_two)->sched_one = new;
         thread_list_head->sched_two = new;
 
     }
@@ -41,15 +41,16 @@ thread next(void){
     if (thread_list_head == NULL){
         return NULL;
     }
-    thread return_thread = thread_list_head;
-    while (return_thread != NULL){
-        if (return_thread->exited == NULL){
-            break;
+    thread starting = thread_list_head;
+    thread current = thread_list_head->sched_one;
+    while (current->exited != NULL){
+        if (current == starting){
+            return NULL;
         }
-
+        current = current->sched_one;
     }
-    thread_list_head = return_thread;
-    return return_thread;
+    thread_list_head = current;
+    return current;
 }
 
 int qlen(void){
