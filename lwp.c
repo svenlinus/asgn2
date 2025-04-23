@@ -135,6 +135,10 @@ scheduler lwp_get_scheduler(){
   return current_scheduler;
 }
 
+tid_t lwp_gettid(){
+  return curr_thread->tid;
+}
+
 void lwp_start() {
   /* Allocate a context for the main thread */
   thread lwp = (thread)calloc(1, sizeof(context));
