@@ -1,4 +1,4 @@
-/* TODO: lwp gettid(void), tid2thread(tid t tid), Wrap */
+/* TODO: tid2thread(tid t tid), stack round 16, Wrap */
 
 #include <stdio.h>
 #include <unistd.h>
@@ -99,45 +99,6 @@ tid_t lwp_create(lwpfun function, void *argument) {
   return lwp->tid;
 }
 
-void lwp_set_scheduler(scheduler fun){
-  thread current_thread = current_scheduler->next();
-  if (fun == NULL) {
-    current_scheduler->init = round_robin_scheduler->init;
-    current_scheduler->admit = round_robin_scheduler->admit;
-    current_scheduler->next = round_robin_scheduler->next;
-    current_scheduler->qlen = round_robin_scheduler->qlen;
-    current_scheduler->remove = round_robin_scheduler->remove;
-    current_scheduler->shutdown = round_robin_scheduler->shutdown;
-    return;
-  }
-
-  if(fun->init != NULL){
-    fun->init();
-  }
-  while(current_thread != NULL){
-    fun->admit(current_thread);
-    current_scheduler->remove(current_thread);  
-    current_thread = current_scheduler->next();
-  }
-  current_scheduler->init = fun->init;
-  current_scheduler->admit = fun->admit;
-  current_scheduler->remove = fun->remove;
-  current_scheduler->next = fun->next;
-  current_scheduler->qlen = fun->qlen;
-
-  if (current_scheduler->shutdown != NULL){
-    current_scheduler->shutdown();
-  }
-  current_scheduler->shutdown = fun->shutdown;
-}
-
-scheduler lwp_get_scheduler(){
-  return current_scheduler;
-}
-
-tid_t lwp_gettid(){
-  return curr_thread->tid;
-}
 
 void lwp_start() {
   /* Allocate a context for the main thread */
@@ -275,6 +236,53 @@ tid_t lwp_wait(int *status) {
   return tid;
 }
 
-int main() {
-  return 0;
+thread tid2thread(tid_t tid) {
+  thread iter_thread = all_threads;
+  while (iter_thread) {
+    if (iter_thread->tid == tid) {
+      return iter_thread;
+    }
+    iter_thread = iter_thread->lib_two;
+  }
+  return NO_THREAD;
+}
+
+tid_t lwp_gettid(){
+  return curr_thread ? curr_thread->tid : NO_THREAD;
+}
+
+void lwp_set_scheduler(scheduler fun){
+  thread current_thread = current_scheduler->next();
+  if (fun == NULL) {
+    current_scheduler->init = round_robin_scheduler->init;
+    current_scheduler->admit = round_robin_scheduler->admit;
+    current_scheduler->next = round_robin_scheduler->next;
+    current_scheduler->qlen = round_robin_scheduler->qlen;
+    current_scheduler->remove = round_robin_scheduler->remove;
+    current_scheduler->shutdown = round_robin_scheduler->shutdown;
+    return;
+  }
+
+  if(fun->init != NULL){
+    fun->init();
+  }
+  while(current_thread != NULL){
+    fun->admit(current_thread);
+    current_scheduler->remove(current_thread);  
+    current_thread = current_scheduler->next();
+  }
+  current_scheduler->init = fun->init;
+  current_scheduler->admit = fun->admit;
+  current_scheduler->remove = fun->remove;
+  current_scheduler->next = fun->next;
+  current_scheduler->qlen = fun->qlen;
+
+  if (current_scheduler->shutdown != NULL){
+    current_scheduler->shutdown();
+  }
+  current_scheduler->shutdown = fun->shutdown;
+}
+
+scheduler lwp_get_scheduler(){
+  return current_scheduler;
 }
