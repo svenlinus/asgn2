@@ -1,3 +1,8 @@
+#include "lwp.h"
+
+thread thread_list_head = NULL;
+thread thread_list_tail = NULL;
+
 void init(void);
 
 void shutdown(void); 
