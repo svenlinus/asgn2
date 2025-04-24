@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include "lwp.h"
 #include "scheduler.h"
 
@@ -11,10 +12,12 @@
 #define KILOBYTE 1024
 #define LWP_STACK_SIZE 2*MEGABYTE
 
-int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS;
 #ifdef __linux__
-    mmap_flags |= MAP_STACK;
+#define MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK)
+#else
+#define MMAP_FLAGS (MAP_PRIVATE | MAP_ANONYMOUS)
 #endif
+
 int tid_incr = 0;
 thread curr_thread = NULL;
 thread exited_threads = NULL;
@@ -58,11 +61,11 @@ tid_t lwp_create(lwpfun function, void *argument) {
   }
 
   /* Create stack for the LWP */
-  uintptr_t stack_top = mmap(
+  void *stack_top = mmap(
     NULL, 
     stack_size, 
     PROT_READ|PROT_WRITE, 
-    mmap_flags, 
+    MMAP_FLAGS, 
     -1, 
     0
   );
@@ -72,10 +75,10 @@ tid_t lwp_create(lwpfun function, void *argument) {
   }
   /* Because stacks grow downward, compute the top of the allocated memory */
   /* This pointer will be the base of the stack */
-  uintptr_t base_ptr = stack_top + stack_size;
+  uintptr_t base_ptr = (uintptr_t)stack_top + stack_size;
   /* Add return address to stack so that the program jumps to the function */
-  ((unsigned char *)base_ptr)[1] = (uintptr_t)lwp_wrap;
-  ((unsigned char *)base_ptr)[2] = base_ptr;
+  ((unsigned char *)base_ptr)[-1] = (uintptr_t)lwp_wrap;
+  ((unsigned char *)base_ptr)[-2] = base_ptr;
 
   /* Allocate a context for the lwp */
   thread lwp = (thread)calloc(1, sizeof(context));
@@ -83,13 +86,13 @@ tid_t lwp_create(lwpfun function, void *argument) {
     perror("calloc");
     return NO_THREAD;
   }
-  lwp->stack = base_ptr;
+  lwp->stack = (unsigned long *)base_ptr;
   lwp->stacksize = stack_size;
   lwp->tid = tid_incr++;
   lwp->status = MKTERMSTAT(LWP_LIVE, 0);
   lwp->state.fxsave = FPU_INIT;
   /* Set base pointer to this threads stack */
-  lwp->state.rbp = base_ptr + 2;
+  lwp->state.rbp = base_ptr - 2;
   /* In x86, the first function argument is stored in rdi */
   lwp->state.rdi = (uintptr_t)function;
   lwp->state.rsi = (uintptr_t)argument;
@@ -102,10 +105,6 @@ tid_t lwp_create(lwpfun function, void *argument) {
   lwp->lib_two = all_threads;
   all_threads = lwp;
   
-  if (curr_thread == NULL) {
-    curr_thread = lwp;
-  }
-
   return lwp->tid;
 }
 
@@ -120,6 +119,8 @@ void lwp_start() {
   lwp->stack = NULL;
   lwp->tid = tid_incr++;
   lwp->state.fxsave = FPU_INIT;
+  swap_rfiles(&(lwp->state), NULL);
+  curr_thread = lwp;
 
   /* Add lwp to scheduler */
   scheduler sched = lwp_get_scheduler();
@@ -130,7 +131,7 @@ void lwp_start() {
 
 void lwp_yield() {
   if (curr_thread == NULL) {
-    fprintf(STDERR_FILENO, "Can't yield with no threads running\n");
+    fprintf(stderr, "Can't yield with no threads running\n");
     return;
   } 
   /* Get the next thread to run */
@@ -149,7 +150,7 @@ void lwp_yield() {
 
 void lwp_exit(int status) {
   if (curr_thread == NULL) {
-    fprintf(STDERR_FILENO, "Can't exit with no threads running\n");
+    fprintf(stderr, "Can't exit with no threads running\n");
     return;
   }
   scheduler sched = lwp_get_scheduler();
@@ -197,8 +198,8 @@ void lwp_exit(int status) {
 
 tid_t lwp_wait(int *status) {
   if (curr_thread == NULL) {
-    fprintf(STDERR_FILENO, "Can't wait with no threads running\n");
-    return;
+    fprintf(stderr, "Can't wait with no threads running\n");
+    return NO_THREAD;
   }
   scheduler sched = lwp_get_scheduler();
   if (sched->qlen() <= 1) {
@@ -231,12 +232,12 @@ tid_t lwp_wait(int *status) {
     /* Thread rescheduled */
     exit_thread = curr_thread->exited;
     if (exit_thread == NULL) {
-      fprintf(STDERR_FILENO, "Thread rescheduled with no associated exits\n");
+      fprintf(stderr, "Thread rescheduled with no associated exits\n");
       return NO_THREAD;
     }
   }
   tid_t tid = exit_thread->tid;
-  *status = exit_thread->status ? LWPTERMSTAT(exit_thread->status) : NULL;
+  *status = exit_thread->status ? LWPTERMSTAT(exit_thread->status) : 0;
   /* Deallocate exited thread */
   if (exit_thread->stack) {
     munmap(exit_thread->stack, exit_thread->stacksize);
@@ -262,14 +263,14 @@ tid_t lwp_gettid(){
 }
 
 void lwp_set_scheduler(scheduler fun){
-  thread current_thread = current_scheduler->next();
+  thread current_thread = current_scheduler.next();
   if (fun == NULL) {
-    current_scheduler->init = round_robin_scheduler->init;
-    current_scheduler->admit = round_robin_scheduler->admit;
-    current_scheduler->next = round_robin_scheduler->next;
-    current_scheduler->qlen = round_robin_scheduler->qlen;
-    current_scheduler->remove = round_robin_scheduler->remove;
-    current_scheduler->shutdown = round_robin_scheduler->shutdown;
+    current_scheduler.init = round_robin_scheduler.init;
+    current_scheduler.admit = round_robin_scheduler.admit;
+    current_scheduler.next = round_robin_scheduler.next;
+    current_scheduler.qlen = round_robin_scheduler.qlen;
+    current_scheduler.remove = round_robin_scheduler.remove;
+    current_scheduler.shutdown = round_robin_scheduler.shutdown;
     return;
   }
 
@@ -278,21 +279,21 @@ void lwp_set_scheduler(scheduler fun){
   }
   while(current_thread != NULL){
     fun->admit(current_thread);
-    current_scheduler->remove(current_thread);  
-    current_thread = current_scheduler->next();
+    current_scheduler.remove(current_thread);  
+    current_thread = current_scheduler.next();
   }
-  current_scheduler->init = fun->init;
-  current_scheduler->admit = fun->admit;
-  current_scheduler->remove = fun->remove;
-  current_scheduler->next = fun->next;
-  current_scheduler->qlen = fun->qlen;
+  current_scheduler.init = fun->init;
+  current_scheduler.admit = fun->admit;
+  current_scheduler.remove = fun->remove;
+  current_scheduler.next = fun->next;
+  current_scheduler.qlen = fun->qlen;
 
-  if (current_scheduler->shutdown != NULL){
-    current_scheduler->shutdown();
+  if (current_scheduler.shutdown != NULL){
+    current_scheduler.shutdown();
   }
-  current_scheduler->shutdown = fun->shutdown;
+  current_scheduler.shutdown = fun->shutdown;
 }
 
 scheduler lwp_get_scheduler(){
-  return current_scheduler;
+  return &current_scheduler;
 }

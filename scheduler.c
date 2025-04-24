@@ -1,10 +1,11 @@
 #include "scheduler.h"
 #include <stdlib.h>
 
+thread thread_list_head = NULL;
+
 void init(void){
     return;
 }
-
 
 void shutdown(void){
     return;
@@ -70,3 +71,7 @@ int qlen(void){
     }
     return counter;
 }
+
+
+struct scheduler round_robin_scheduler = {init, shutdown, admit, remove, next, qlen};
+struct scheduler current_scheduler = {init, shutdown, admit, remove, next, qlen};

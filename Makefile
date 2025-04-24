@@ -1,22 +1,23 @@
 CC = gcc
-CFLAGS = -Wall -g -fpic -Wno-deprecated-declarations
+CFLAGS = -Wall
 
-intel-all: lib/liblwp.so lib64/liblwp.so
+all: test
+	./test
 
-lib/liblwp.so: lib liblwp32.o
-	$(CC) $(CFLAGS) -m32 -shared -o $@ liblwp32.o
+test: test.o magic64.o lwp.o scheduler.o
+	$(CC) $(CFLAGS) -o test test.o magic64.o lwp.o scheduler.o
 
-lib64/liblwp.so: lib64 liblwp64.o
-	$(CC) $(CFLAGS) -shared -o $@ liblwp64.o
+test.o: test.c
+	$(CC) $(CFLAGS) -c test.c
 
-lib:
-	mkdir lib
+lwp.o: lwp.c
+	$(CC) $(CFLAGS) -c lwp.c
+	
+scheduler.o: scheduler.c
+	$(CC) $(CFLAGS) -c scheduler.c
 
-lib64:
-	mkdir lib64
+magic64.o: magic64.S
+	$(CC) -o magic64.o -c magic64.S
 
-liblwp32.o: lwp.c lwp.h
-	$(CC) $(CFLAGS) -m32 -c -o liblwp32.o lwp.c lwp.h
-
-liblwp64.o: lwp.c lwp.h
-	$(CC) $(CFLAGS) -m64 -c -o liblwp64.o lwp.c lwp.h
+clean:
+	rm *.o
