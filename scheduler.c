@@ -14,6 +14,8 @@ void shutdown(void){
 void admit(thread new){
     if (thread_list_head == NULL){
         thread_list_head = new;
+        new->sched_one = new;
+        new->sched_two = new;
     }
     else{
         new->sched_one = thread_list_head;
