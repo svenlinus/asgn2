@@ -75,5 +75,5 @@ int qlen(void){
 }
 
 
-struct scheduler round_robin_sched = {init, shutdown, admit, remove, next, qlen};
+struct scheduler roundrobin_sched = {init, shutdown, admit, remove, next, qlen};
 struct scheduler current_sched = {init, shutdown, admit, remove, next, qlen};

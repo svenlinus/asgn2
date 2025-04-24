@@ -265,12 +265,12 @@ tid_t lwp_gettid(){
 void lwp_set_scheduler(scheduler fun){
   thread current_thread = current_sched.next();
   if (fun == NULL) {
-    current_sched.init = round_robin_sched.init;
-    current_sched.admit = round_robin_sched.admit;
-    current_sched.next = round_robin_sched.next;
-    current_sched.qlen = round_robin_sched.qlen;
-    current_sched.remove = round_robin_sched.remove;
-    current_sched.shutdown = round_robin_sched.shutdown;
+    current_sched.init = roundrobin_sched.init;
+    current_sched.admit = roundrobin_sched.admit;
+    current_sched.next = roundrobin_sched.next;
+    current_sched.qlen = roundrobin_sched.qlen;
+    current_sched.remove = roundrobin_sched.remove;
+    current_sched.shutdown = roundrobin_sched.shutdown;
     return;
   }
 
