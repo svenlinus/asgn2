@@ -3,6 +3,6 @@
 
 #include "lwp.h"
 extern struct scheduler current_sched;
-extern struct scheduler round_robin_sched;
+extern struct scheduler roundrobin_sched;
 
 #endif
