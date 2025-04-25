@@ -261,7 +261,7 @@ thread tid2thread(tid_t tid) {
     }
     iter_thread = iter_thread->lib_two;
   }
-  return NO_THREAD;
+  return NULL;
 }
 
 tid_t lwp_gettid(){
@@ -270,34 +270,17 @@ tid_t lwp_gettid(){
 
 void lwp_set_scheduler(scheduler fun){
   thread current_thread = current_sched.next();
-  if (fun == NULL) {
-    current_sched.init = roundrobin_sched.init;
-    current_sched.admit = roundrobin_sched.admit;
-    current_sched.next = roundrobin_sched.next;
-    current_sched.qlen = roundrobin_sched.qlen;
-    current_sched.remove = roundrobin_sched.remove;
-    current_sched.shutdown = roundrobin_sched.shutdown;
-    return;
-  }
-
-  if(fun->init != NULL){
-    fun->init();
-  }
-  while(current_thread != NULL){
-    fun->admit(current_thread);
-    current_sched.remove(current_thread);  
-    current_thread = current_sched.next();
-  }
-  current_sched.init = fun->init;
-  current_sched.admit = fun->admit;
-  current_sched.remove = fun->remove;
-  current_sched.next = fun->next;
-  current_sched.qlen = fun->qlen;
-
   if (current_sched.shutdown != NULL){
     current_sched.shutdown();
   }
-  current_sched.shutdown = fun->shutdown;
+  if (fun == NULL) {
+    current_sched = roundrobin_sched;
+    return;
+  }
+  if(fun->init != NULL){
+    fun->init();
+  }
+  current_sched = *fun;
 }
 
 scheduler lwp_get_scheduler(){
