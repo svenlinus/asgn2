@@ -44,7 +44,7 @@ thread next(void){
   if (thread_list_head == NULL){
     return NULL;
   }
-  thread result = thread_list_head->sched_one;
+  thread result = thread_list_head;
   thread_list_head = thread_list_head->sched_one;
   return result;
 }

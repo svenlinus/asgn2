@@ -75,7 +75,7 @@ tid_t lwp_create(lwpfun function, void *argument) {
   }
   /* Because stacks grow downward, compute the top of the allocated memory */
   /* This pointer will be the base of the stack */
-  uintptr_t base_ptr = (uintptr_t)stack_top + stack_size; /* (uintptr_t)(stack_top + stack_size) & ~0xF; */
+  uintptr_t base_ptr = ((uintptr_t)(stack_top + stack_size) & ~0xF) - 8;
   uintptr_t *stack = (uintptr_t *)base_ptr;
   /* Add return address to stack so that the program jumps to the function */
   stack[-1] = (uintptr_t)lwp_wrap;
@@ -99,8 +99,6 @@ tid_t lwp_create(lwpfun function, void *argument) {
   lwp->state.rdi = (uintptr_t)function;
   lwp->state.rsi = (uintptr_t)argument;
 
-  printf("create %ld\n", lwp->state.rbp);
-
   /* Add lwp to scheduler */
   scheduler sched = lwp_get_scheduler();
   sched->admit(lwp);
@@ -123,14 +121,13 @@ void lwp_start() {
   lwp->stack = NULL;
   lwp->tid = tid_incr++;
   lwp->state.fxsave = FPU_INIT;
-  swap_rfiles(&(lwp->state), NULL);
+  /*swap_rfiles(&(lwp->state), NULL);*/
   curr_thread = lwp;
 
   /* Add lwp to scheduler */
   scheduler sched = lwp_get_scheduler();
   sched->admit(lwp);
 
-  printf("start %ld\n", lwp->state.rbp);
   lwp_yield();
 }
 
@@ -148,9 +145,7 @@ void lwp_yield() {
   /* Save current context and load next */
   thread pthread = curr_thread;
   curr_thread = next;
-  printf("yield %ld\n", next->state.rbp);
   swap_rfiles(&(pthread->state), &(curr_thread->state));
-  printf("swap\n");
 }
 
 
@@ -246,7 +241,9 @@ tid_t lwp_wait(int *status) {
     }
   }
   tid_t tid = exit_thread->tid;
-  *status = exit_thread->status ? LWPTERMSTAT(exit_thread->status) : 0;
+  if (status) {  
+    *status = exit_thread->status ? LWPTERMSTAT(exit_thread->status) : 0;
+  }
   /* Deallocate exited thread */
   if (exit_thread->stack) {
     munmap(exit_thread->stack, exit_thread->stacksize);
