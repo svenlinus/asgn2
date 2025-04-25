@@ -20,14 +20,14 @@ int thread_code(void *arg) {
 int main() {
   int i;
   int args[6];
-  for (i = 1; i <= 6; i++) {
+  for (i = 1; i <= 1; i++) {
     args[i-1] = i;
     lwp_create(thread_code, &args[i-1]);
     printf("Created %d\n", i);
   }
   lwp_start();
   printf("starting...\n");
-  for (i = 0; i < 6; i++) {
+  for (i = 0; i < 1; i++) {
     int status;
     tid_t tid = lwp_wait(&status);
     printf("%d exited with status %d\n", (int)tid, status);

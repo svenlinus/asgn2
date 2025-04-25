@@ -1,5 +1,8 @@
-#include "scheduler.h"
 #include <stdlib.h>
+#define remove remove_thread
+#include <stdio.h>
+#undef remove
+#include "scheduler.h"
 
 thread thread_list_head = NULL;
 
@@ -46,7 +49,13 @@ thread next(void){
         return NULL;
     }
     thread starting = thread_list_head;
-    thread current = thread_list_head->sched_one;
+    thread current = thread_list_head;
+    if (thread_list_head->exited == NULL){
+        thread_list_head = thread_list_head->sched_one;
+        return current;
+    }
+
+    current = current->sched_one;
     while (current->exited != NULL){
         if (current == starting){
             return NULL;
@@ -66,9 +75,7 @@ int qlen(void){
     counter++;
     current_thread = current_thread->sched_one;
     while (current_thread != thread_list_head){
-        if (!current_thread->exited){
-            counter++;
-        }
+        counter++;
         current_thread = current_thread->sched_one;
     }
     return counter;

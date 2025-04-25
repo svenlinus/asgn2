@@ -75,10 +75,11 @@ tid_t lwp_create(lwpfun function, void *argument) {
   }
   /* Because stacks grow downward, compute the top of the allocated memory */
   /* This pointer will be the base of the stack */
-  uintptr_t base_ptr = (uintptr_t)stack_top + stack_size;
+  uintptr_t base_ptr = (uintptr_t)stack_top + stack_size; /* (uintptr_t)(stack_top + stack_size) & ~0xF; */
+  uintptr_t *stack = (uintptr_t *)base_ptr;
   /* Add return address to stack so that the program jumps to the function */
-  ((unsigned char *)base_ptr)[-1] = (uintptr_t)lwp_wrap;
-  ((unsigned char *)base_ptr)[-2] = base_ptr;
+  stack[-1] = (uintptr_t)lwp_wrap;
+  stack[-2] = 0; 
 
   /* Allocate a context for the lwp */
   thread lwp = (thread)calloc(1, sizeof(context));
@@ -92,10 +93,13 @@ tid_t lwp_create(lwpfun function, void *argument) {
   lwp->status = MKTERMSTAT(LWP_LIVE, 0);
   lwp->state.fxsave = FPU_INIT;
   /* Set base pointer to this threads stack */
-  lwp->state.rbp = base_ptr - 2;
+  lwp->state.rbp = (uintptr_t)(stack - 2);
+  lwp->state.rsp = (uintptr_t)(stack - 2);
   /* In x86, the first function argument is stored in rdi */
   lwp->state.rdi = (uintptr_t)function;
   lwp->state.rsi = (uintptr_t)argument;
+
+  printf("create %ld\n", lwp->state.rbp);
 
   /* Add lwp to scheduler */
   scheduler sched = lwp_get_scheduler();
@@ -126,6 +130,7 @@ void lwp_start() {
   scheduler sched = lwp_get_scheduler();
   sched->admit(lwp);
 
+  printf("start %ld\n", lwp->state.rbp);
   lwp_yield();
 }
 
@@ -141,10 +146,11 @@ void lwp_yield() {
     exit(curr_thread->status);
   }
   /* Save current context and load next */
-  rfile curr_state;
-  swap_rfiles(&curr_state, &(next->state));
-  curr_thread->state = curr_state;
+  thread pthread = curr_thread;
   curr_thread = next;
+  printf("yield %ld\n", next->state.rbp);
+  swap_rfiles(&(pthread->state), &(curr_thread->state));
+  printf("swap\n");
 }
 
 
@@ -194,6 +200,7 @@ void lwp_exit(int status) {
     pthread = iter_thread;
     iter_thread = iter_thread->lib_two;
   }
+  lwp_yield();
 }
 
 tid_t lwp_wait(int *status) {
@@ -228,6 +235,8 @@ tid_t lwp_wait(int *status) {
     sched->remove(curr_thread);
     curr_thread->exited = NULL;
     lwp_yield();
+
+    
 
     /* Thread rescheduled */
     exit_thread = curr_thread->exited;
