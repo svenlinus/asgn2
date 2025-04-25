@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -g -Wno-deprecated-declarations
+CFLAGS = -Wall -fPIC -g -Wno-deprecated-declarations
 
 all: test
 	./test
