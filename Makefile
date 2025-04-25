@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -g -Wno-deprecated-declarations
+CFLAGS = -Wall -fPIC -g -Wno-deprecated-declarations
 
 all: test
 	./test
@@ -22,8 +22,11 @@ magic64.o: magic64.S
 clean:
 	rm *.o
 
-liblwp.so: liblwp.o
-	$(CC) $(CFLAGS) -shared -o $@ liblwp.o
+liblwp.so: liblwp.o scheduler.o magic64.o
+	$(CC) $(CFLAGS) -shared -o $@ liblwp.o scheduler.o magic64.o
 	
-liblwp.o: lwp.c lwp.h scheduler.c scheduler.h
-	$(CC) $(CFLAGS) -c -o liblwp.o lwp.c lwp.h scheduler.c scheduler.h
+liblwp.o: lwp.c lwp.h
+	$(CC) $(CFLAGS) -c lwp.c -o $@
+
+scheduler.o: scheduler.c scheduler.h
+	$(CC) $(CFLAGS) -c scheduler.c -o $@

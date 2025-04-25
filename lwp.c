@@ -272,14 +272,14 @@ tid_t lwp_gettid(){
 }
 
 void lwp_set_scheduler(scheduler fun){
-  thread current_thread = current_scheduler.next();
+  thread current_thread = current_sched.next();
   if (fun == NULL) {
-    current_scheduler.init = round_robin_scheduler.init;
-    current_scheduler.admit = round_robin_scheduler.admit;
-    current_scheduler.next = round_robin_scheduler.next;
-    current_scheduler.qlen = round_robin_scheduler.qlen;
-    current_scheduler.remove = round_robin_scheduler.remove;
-    current_scheduler.shutdown = round_robin_scheduler.shutdown;
+    current_sched.init = roundrobin_sched.init;
+    current_sched.admit = roundrobin_sched.admit;
+    current_sched.next = roundrobin_sched.next;
+    current_sched.qlen = roundrobin_sched.qlen;
+    current_sched.remove = roundrobin_sched.remove;
+    current_sched.shutdown = roundrobin_sched.shutdown;
     return;
   }
 
@@ -288,21 +288,21 @@ void lwp_set_scheduler(scheduler fun){
   }
   while(current_thread != NULL){
     fun->admit(current_thread);
-    current_scheduler.remove(current_thread);  
-    current_thread = current_scheduler.next();
+    current_sched.remove(current_thread);  
+    current_thread = current_sched.next();
   }
-  current_scheduler.init = fun->init;
-  current_scheduler.admit = fun->admit;
-  current_scheduler.remove = fun->remove;
-  current_scheduler.next = fun->next;
-  current_scheduler.qlen = fun->qlen;
+  current_sched.init = fun->init;
+  current_sched.admit = fun->admit;
+  current_sched.remove = fun->remove;
+  current_sched.next = fun->next;
+  current_sched.qlen = fun->qlen;
 
-  if (current_scheduler.shutdown != NULL){
-    current_scheduler.shutdown();
+  if (current_sched.shutdown != NULL){
+    current_sched.shutdown();
   }
-  current_scheduler.shutdown = fun->shutdown;
+  current_sched.shutdown = fun->shutdown;
 }
 
 scheduler lwp_get_scheduler(){
-  return &current_scheduler;
+  return &current_sched;
 }
